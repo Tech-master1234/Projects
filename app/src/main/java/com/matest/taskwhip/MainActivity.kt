@@ -1,7 +1,5 @@
 package com.matest.taskwhip
 
-//import android.app.NotificationChannel
-//import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -19,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-//import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -67,7 +64,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun scheduleReminderWork() {
-        val request = PeriodicWorkRequestBuilder<TaskWhipReminderWorker>(6, TimeUnit.HOURS).build()
+        val request = PeriodicWorkRequestBuilder<TaskWhipReminderWorker>(1, TimeUnit.HOURS).build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "taskwhip_reminder",
             ExistingPeriodicWorkPolicy.KEEP,
@@ -97,21 +94,12 @@ fun TaskWhipApp() {
     var goalText by remember { mutableStateOf("") }
     var selectedType by remember { mutableStateOf(TaskType.CHECKLIST) }
 
-//    fun saveTasks() {
-//        scope.launch {
-//            val json = Json.encodeToString(tasks)
-//            context.dataStore.edit { it[TASK_LIST_KEY] = json }
-//        }
-//    }
-
     fun saveTasks() {
         scope.launch {
-            val serializableList = tasks.toList() // ← converts SnapshotStateList to regular List
-            val json = Json.encodeToString(serializableList)
+            val json = Json.encodeToString(tasks.toList()) // SnapshotStateList ➜ List
             context.dataStore.edit { it[TASK_LIST_KEY] = json }
         }
     }
-
 
     Column(
         modifier = Modifier
@@ -143,30 +131,28 @@ fun TaskWhipApp() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        Button(
-            onClick = {
-                if (title.isBlank()) return@Button
-                if (selectedType == TaskType.PROGRESS && goalText.toIntOrNull() == null) {
-                    Toast.makeText(context, "Please enter a valid goal", Toast.LENGTH_SHORT).show()
-                    return@Button
-                }
+        Button(onClick = {
+            if (title.isBlank()) return@Button
+            val goal = goalText.toIntOrNull()
+            if (selectedType == TaskType.PROGRESS && goal == null) {
+                Toast.makeText(context, "Please enter a valid goal", Toast.LENGTH_SHORT).show()
+                return@Button
+            }
 
-                val goal = goalText.toIntOrNull()
-                tasks.add(
-                    TaskItem(
-                        title = title,
-                        type = selectedType,
-                        goal = if (selectedType == TaskType.PROGRESS) goal else null,
-                        currentProgress = if (selectedType == TaskType.PROGRESS) 0 else null
-                    )
+            tasks.add(
+                TaskItem(
+                    title = title,
+                    type = selectedType,
+                    isDone = false,
+                    goal = if (selectedType == TaskType.PROGRESS) goal else null,
+                    currentProgress = if (selectedType == TaskType.PROGRESS) 0 else null
                 )
-                title = ""
-                goalText = ""
-                selectedType = TaskType.CHECKLIST
-                saveTasks()
-            },
-            modifier = Modifier.align(Alignment.End)
-        ) {
+            )
+            title = ""
+            goalText = ""
+            selectedType = TaskType.CHECKLIST
+            saveTasks()
+        }, modifier = Modifier.align(Alignment.End)) {
             Text("Add Task")
         }
 
@@ -244,8 +230,9 @@ fun TaskWhipApp() {
                                 Button(onClick = {
                                     val index = tasks.indexOf(task)
                                     if (index != -1) {
-                                        val updatedProgress = (task.currentProgress ?: 0) + 1
-                                        tasks[index] = task.copy(currentProgress = updatedProgress)
+                                        val updated = (task.currentProgress ?: 0) + 1
+                                        val capped = updated.coerceAtMost(task.goal ?: 1)
+                                        tasks[index] = task.copy(currentProgress = capped)
                                         saveTasks()
                                     }
                                 }) {
