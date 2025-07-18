@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -24,11 +26,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.work.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
+import com.matest.taskwhip.ui.theme.TaskWhipTheme
+import androidx.compose.foundation.background
 
 
 val Context.dataStore by preferencesDataStore("taskwhip_store")
@@ -51,7 +54,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         requestNotificationPermission()
         scheduleReminderWork()
-        setContent { TaskWhipApp() }
+        setContent {
+            TaskWhipTheme {
+                TaskWhipApp()
+            }
+        }
     }
 
     private fun requestNotificationPermission() {
@@ -96,7 +103,7 @@ fun TaskWhipApp() {
 
     fun saveTasks() {
         scope.launch {
-            val json = Json.encodeToString(tasks.toList()) // SnapshotStateList ➜ List
+            val json = Json.encodeToString(tasks.toList())
             context.dataStore.edit { it[TASK_LIST_KEY] = json }
         }
     }
@@ -104,9 +111,11 @@ fun TaskWhipApp() {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background) // 👈 Add this line
             .padding(WindowInsets.statusBars.asPaddingValues())
             .padding(16.dp)
-    ) {
+    )
+ {
         TextField(
             value = title,
             onValueChange = { title = it },
@@ -157,8 +166,13 @@ fun TaskWhipApp() {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Your Tasks", style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(8.dp))
+     Text(
+         text = "Your Tasks",
+         style = MaterialTheme.typography.titleLarge,
+         color = MaterialTheme.colorScheme.onBackground
+     )
+
+     Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn {
             items(tasks) { task ->
@@ -183,7 +197,11 @@ fun TaskWhipApp() {
                                     }
                                 }
                             )
-                            Text(task.title)
+                            Text(
+                                text = task.title,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+
                         }
                         IconButton(onClick = {
                             val index = tasks.indexOf(task)
